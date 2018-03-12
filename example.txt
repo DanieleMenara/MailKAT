@@ -1,0 +1,1 @@
+f = p . 1 . ( t = v . (0 + red[address] )) . s := v
