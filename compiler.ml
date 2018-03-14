@@ -20,7 +20,7 @@ let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some value ->
     printf "%s\n" (Action.to_string value);
-    printf "%s\n" (Action.to_string (Action.to_disj_normal_form value));
+    printf "%s\n" (Action.to_sieve value);
     parse_and_print lexbuf
   | None -> ()
 

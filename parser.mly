@@ -1,3 +1,8 @@
+%{
+open Action
+open Test
+%}
+
 %token <string> ID
 %token <string> STRING
 %token ONE
@@ -20,31 +25,36 @@
 %left PLUS              /* lowest precedence */
 %left SEQ               /* medium precedence */
 %nonassoc NEG           /* highest precedence */
+%nonassoc STAR           /* highest precedence */
 
 %start <Action.action option> prog
-%type <Action.action> actions
 %type <Action.action> action
+%type <Test.test> tests
 %type <Test.test> test
 %%
 
 prog:
-  | s = actions EOF                                         { Some s }
-  | EOF                                                     { None   } ;
-
-actions:
-  | a = action                                              { a }
-  | acts = delimited(LEFT_BRACK, actions, RIGHT_BRACK)      { acts }
-  | a1 = actions; PLUS; a2 = actions                        { Sum(a1, a2) }
-  | a1 = actions; SEQ; a2 = actions                         { Seq(a1, a2) } ;
-
-test:
-  | ZERO                                                    { Const(false) }
-  | ONE                                                     { Const(true) }
-  | NEG; t = test                                           { Neg(t) }
-  | field = ID; EQUAL; value = ID                           { Test(field, value) } ;
+  | s = action EOF                                         { Some s }
+  | EOF                                                    { None } ;
 
 action:
   | t = test                                                { Test(t) }
   | field = ID; ASSIGN; value = ID                          { Mod(field, value) }
-  | RED; LEFT_SQUARE; id = ID; RIGHT_SQUARE                 { Red(id) }
-  | STORE; LEFT_SQUARE; id = ID; RIGHT_SQUARE               { Store(id) } ;
+  | RED; LEFT_SQUARE; add = STRING; RIGHT_SQUARE            { Red(add) }
+  | STORE; LEFT_SQUARE; mailbox = STRING; RIGHT_SQUARE      { Store(mailbox) }
+  | a = delimited(LEFT_BRACK, action, RIGHT_BRACK)          { a }
+  | a = separated_pair(action, PLUS, action)                { Sum(a) }
+  | a = separated_pair(action, SEQ, action)                 { Seq(a) }
+  | a = action; STAR                                        { Star(a) } ;
+
+tests:
+  | t = test;                                               { t }
+  | t = separated_pair(tests, PLUS, tests)                  { Sum(t) }
+  | t = separated_pair(tests, SEQ, tests)                   { Seq(t) }
+  | t = delimited(LEFT_BRACK, tests, RIGHT_BRACK)           { t } ;
+
+test:
+  | ZERO                                                    { Const(false) }
+  | ONE                                                     { Const(true) }
+  | NEG; t = tests                                          { Neg(t) }
+  | field = ID; EQUAL; value = STRING                       { Test(field, value) } ;
