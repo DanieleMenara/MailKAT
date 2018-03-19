@@ -27,10 +27,10 @@ open Test
 %nonassoc NEG           /* highest precedence */
 %nonassoc STAR           /* highest precedence */
 
-%start <Action.action option> prog
-%type <Action.action> action
-%type <Test.test> tests
-%type <Test.test> test
+%start <[< Action.fmla ] option> prog
+%type <[< Action.fmla ]> action
+%type <[> Test.test ]> tests
+%type <[> Test.test ]> test
 %%
 
 prog:
@@ -38,23 +38,23 @@ prog:
   | EOF                                                    { None } ;
 
 action:
-  | t = test                                                { Test(t) }
-  | field = ID; ASSIGN; value = ID                          { Mod(field, value) }
-  | RED; LEFT_SQUARE; add = STRING; RIGHT_SQUARE            { Red(add) }
-  | STORE; LEFT_SQUARE; mailbox = STRING; RIGHT_SQUARE      { Store(mailbox) }
+  | t = test                                                { t }
+  | field = ID; ASSIGN; value = ID                          { `Mod(field, value) }
+  | RED; LEFT_SQUARE; add = STRING; RIGHT_SQUARE            { `Red(add) }
+  | STORE; LEFT_SQUARE; mailbox = STRING; RIGHT_SQUARE      { `Store(mailbox) }
   | a = delimited(LEFT_BRACK, action, RIGHT_BRACK)          { a }
-  | a = separated_pair(action, PLUS, action)                { Sum(a) }
-  | a = separated_pair(action, SEQ, action)                 { Seq(a) }
-  | a = action; STAR                                        { Star(a) } ;
+  | a = separated_pair(action, PLUS, action)                { `Sum(a) }
+  | a = separated_pair(action, SEQ, action)                 { `Seq(a) }
+  | a = action; STAR                                        { `Star(a) } ;
 
 tests:
-  | t = test;                                               { t }
-  | t = separated_pair(tests, PLUS, tests)                  { Sum(t) }
-  | t = separated_pair(tests, SEQ, tests)                   { Seq(t) }
+  | t = test                                                { t }
+  | t = separated_pair(tests, PLUS, tests)                  { `Sum(t) }
+  | t = separated_pair(tests, SEQ, tests)                   { `Seq(t) }
   | t = delimited(LEFT_BRACK, tests, RIGHT_BRACK)           { t } ;
 
 test:
-  | ZERO                                                    { Const(false) }
-  | ONE                                                     { Const(true) }
-  | NEG; t = tests                                          { Neg(t) }
-  | field = ID; EQUAL; value = STRING                       { Test(field, value) } ;
+  | ZERO                                                    { `Const(false) }
+  | ONE                                                     { `Const(true) }
+  | NEG; t = tests                                          { `Not(t) }
+  | field = ID; EQUAL; value = STRING                       { `Test(field, value) } ;

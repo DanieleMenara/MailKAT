@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Lexer
 open Lexing
 
@@ -19,7 +19,6 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some value ->
-    printf "%s\n" (Action.to_string value);
     printf "%s\n" (Action.to_sieve value);
     parse_and_print lexbuf
   | None -> ()

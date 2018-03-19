@@ -36,11 +36,11 @@ rule read =
   | ']'      { RIGHT_SQUARE }
   | '('      { LEFT_BRACK }
   | ')'      { RIGHT_BRACK }
-  | '.'      { SEQ }
+  | ';'      { SEQ }
   | '+'      { PLUS }
   | '='      { EQUAL }
   | '*'      { STAR }
-  | '-'      { NEG }
+  | '!'      { NEG }
   | id       { ID (Lexing.lexeme lexbuf) }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof      { EOF }

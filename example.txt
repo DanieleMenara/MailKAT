@@ -1,1 +1,1 @@
-(envrcpt = "user1@domain.com" . -(subject = "Free money") . (red["user2@gmail.com"] + 1)) + (envrcpt = "user2@gmail.com" . -(subject = "Free money") . (from = "spammer@gmail.com" . store["Imp"] + 1))
+!(envrcpt = "test" ; mkg = "niognre" )
