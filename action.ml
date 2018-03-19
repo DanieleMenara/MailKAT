@@ -2,7 +2,7 @@ open Core
 open Test
 open Util
 
-type 'a star = [ `Star of 'a ]
+type +'a star = [ `Star of 'a ]
 
 type action =
   [ `Mod of (string * string)
@@ -38,11 +38,11 @@ let rec is_equal (fmla1: [< fmla ]) (fmla2: [< fmla ]) =
     | ((#test | `Not #tests) as t1), ((#test | `Not #tests) as t2) -> Test.is_equal t1 t2
     | _, _                                                         -> false
 
-let is_sum fmla =
+let rec is_sum fmla =
   match fmla with
-    | `Sum (_,_)      -> true
-    | #Test.test as t -> Test.is_sum t
-    | _               -> false
+    | `Sum (_,_)         -> true
+    | `Not (#tests as t) -> is_sum t
+    | _                  -> false
 
 let mk_sum a1 a2 = `Sum(a1, a2)
 
@@ -62,17 +62,16 @@ let rec is_tests fmla =
 
 let is_simple_action a =
   match a with
-    | `Mod(f,v)      -> true
-    | `Red(a)        -> true
-    | `Store(m)      -> true
-    | _             -> false
+    | #action    -> true
+    | _          -> false
 
 let rec is_actions fmla =
   match fmla with
     | `Sum(p, q) -> is_actions p && is_actions q
     | `Seq(p, q) -> is_actions p && is_actions q
     | `Star(p)   -> is_actions p
-    | p          -> is_simple_action p
+    | #action    -> true
+    | _          -> false
 
 let rec test_on tsts a =
   match tsts, a with
@@ -84,16 +83,16 @@ let rec test_on tsts a =
     | (#test | `Not #tests) as t, `Store(m)               -> Test.test_on t "mailbox" m
     | _ , _                               -> false
 
-let rec eval_test_on fmla a =
+let rec eval_test_on (fmla: fmla) (a: fmla):bool =
   assert(is_tests fmla);
   match fmla, a with
-    | `Sum(p, q), _        -> eval_test_on p a || eval_test_on q a
-    | `Seq(p, q), _        -> eval_test_on p a && eval_test_on q a
-    | `Star(p), _          -> eval_test_on p a
+    | `Sum(p, q), _                           -> eval_test_on p a || eval_test_on q a
+    | `Seq(p, q), _                           -> eval_test_on p a && eval_test_on q a
+    | `Star(p), _                             -> eval_test_on p a
     | (#test | `Not #tests) as t, `Mod(f, v)  -> Test.eval_on t f v
     | (#test | `Not #tests) as t, `Red(a)     -> Test.eval_on t "envrcpt" a
     | (#test | `Not #tests) as t, `Store(m)   -> Test.eval_on t "mailbox" m
-    | _                    -> true
+    | _                                       -> true
 
 let rec is_conj_clause fmla =
   match fmla with
@@ -123,7 +122,7 @@ let rec is_disj_normal_form fmla =
 
 (* Assume no tests on mailbox *)
 let rec commute_actions fmla =
-  let eval_single tsts p =
+  let eval_single tsts p :> fmla =
     if eval_test_on tsts p then Test.mk_const true else Test.mk_const false
   in let commute_single f =
     match f with
@@ -173,19 +172,19 @@ let rec simplify fmla =
         | `Star(p)   -> contains_drop p
         | (#test | `Not #tests) as t   -> Test.is_drop t
         | _         -> false
-    in if contains_drop fmla then Test.mk_const false else fmla
+    in if contains_drop fmla then ((Test.mk_const false) :> fmla) else fmla
   in let rec assoc fmla =
     match fmla with
-      | `Sum(p, q)          -> `Sum(assoc p, assoc q)
+      | `Sum(p, q)           -> `Sum(assoc p, assoc q)
       | `Seq(p, (`Seq(q,r))) -> `Seq(`Seq(p, q), r)
-      | `Seq(p, q)          -> `Seq(assoc p, assoc q)
-      | `Star(p)            -> `Star(assoc p)
-      | _                  -> fmla
+      | `Seq(p, q)           -> `Seq(assoc p, assoc q)
+      | `Star(p)             -> `Star(assoc p)
+      | _                    -> fmla
   in match fmla with
     | `Seq(p, q) -> simplify_seq_actions (simplify_drop (Util.fixpoint is_equal (Fn.compose commute_actions assoc) fmla))
     | `Sum(p, q) -> `Sum(simplify p, simplify q)
     | `Star(p)   -> simplify p
-    | _         -> fmla
+    | _          -> fmla
 
 (* assume it is in assoc form *)
 let rec split_tests_actions fmla =
@@ -216,7 +215,7 @@ let to_sieve fmla =
   in let rec helper p =
     match p with
       | `Seq(tsts, actions) when is_actions actions -> Printf.sprintf "if allof(%s) {\n %s \n}" (tests_to_sieve tsts) (actions_to_sieve actions)
-      | (`Seq(_, _) | (#test | `Not #tests) as t)   -> Printf.sprintf "if allof(%s) {\nkeep;\n}" (tests_to_sieve p)
+      | (`Seq(_, _) | #test | `Not #tests)   -> Printf.sprintf "if allof(%s) {\nkeep;\n}" (tests_to_sieve p)
       | `Star(q)            -> helper q
       | `Sum(p1, p2)        -> Printf.sprintf "%s\n %s\n" (helper p1) (helper p2)
       | #action as a         -> actions_to_sieve a
