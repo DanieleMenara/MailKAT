@@ -27,10 +27,10 @@ open Test
 %nonassoc NEG           /* highest precedence */
 %nonassoc STAR           /* highest precedence */
 
-%start <[< Action.fmla ] option> prog
-%type <[< Action.fmla ]> action
-%type <[> Test.test ]> tests
-%type <[> Test.test ]> test
+%start <Action.fmla option> prog
+%type <Action.fmla> action
+%type <Test.tests> tests
+%type <Test.tests> test
 %%
 
 prog:
@@ -38,7 +38,7 @@ prog:
   | EOF                                                    { None } ;
 
 action:
-  | t = test                                                { t }
+  | t = test                                                { t :> fmla }
   | field = ID; ASSIGN; value = ID                          { `Mod(field, value) }
   | RED; LEFT_SQUARE; add = STRING; RIGHT_SQUARE            { `Red(add) }
   | STORE; LEFT_SQUARE; mailbox = STRING; RIGHT_SQUARE      { `Store(mailbox) }
