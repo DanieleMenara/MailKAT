@@ -21,3 +21,6 @@ setup.log
 
 # Mac
 .DS_Store
+
+# Compiled sieve programs
+*.sieve
