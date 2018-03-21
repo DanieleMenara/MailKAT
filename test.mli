@@ -17,14 +17,20 @@ val is_drop: tests -> bool
 
 val mk_const: bool -> test
 
+val get_value: test -> string
+
 val to_string: tests -> string
 
 val is_equal: tests -> tests -> bool
 
-val test_on: tests -> string -> string -> bool
+val test_on: tests -> string -> bool
 
 val eval_on: tests -> string -> string -> bool
 
 val to_disj_normal_form: tests -> tests
+
+val simplify: tests -> tests
+
+val remove_mta: tests -> tests
 
 val to_sieve: tests -> string

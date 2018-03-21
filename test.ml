@@ -17,6 +17,11 @@ type tests =
 
 let mk_const c = `Const(c)
 
+let get_value tst =
+  match tst with
+    | `Test(h, v) -> v
+    | _           -> failwith "Not a test."
+
 let rec is_conj_clause tst  =
   match tst with
     | #test              -> true
@@ -51,21 +56,29 @@ let rec is_equal t1 t2 =
     | `Sum(t1, t2), `Sum(t3, t4)          -> (is_equal t1 t3) && (is_equal t2 t4)
     | _, _                                -> false
 
-let rec test_on tst h v =
+let rec test_on tst h =
   match tst with
     | `Test(h1, v1)  -> h = h1
-    | `Not(t)        -> test_on t h v
-    | `Seq(t1, t2)   -> (test_on t1 h v) || (test_on t2 h v)
-    | `Sum(t1, t2)   -> (test_on t1 h v) || (test_on t2 h v)
-    | `Const(c)      -> false
+    | `Not(t)        -> test_on t h
+    | `Seq(t1, t2)   -> (test_on t1 h) || (test_on t2 h)
+    | `Sum(t1, t2)   -> (test_on t1 h) || (test_on t2 h)
+    | _              -> false
 
 let rec eval_on tst h v =
   match tst with
     | `Test(h1, v1)  -> (h = h1 && (v = "*" || v = v1)) || not (h = h1)
-    | `Not(t)        -> not (test_on t h v)
+    | `Not(t)        -> not (eval_on t h v)
     | `Seq(t1, t2)   -> (eval_on t1 h v) && (eval_on t2 h v)
     | `Sum(t1, t2)   -> (eval_on t1 h v) || (eval_on t2 h v)
     | `Const(c)      -> c
+
+let rec remove_mta tst =
+  match tst with
+    | `Test(h, v)   -> if h = "mta" then `Const(true) else tst
+    | `Not(t)       -> `Not(remove_mta t)
+    | `Seq(t1, t2)  -> `Seq(remove_mta t1, remove_mta t2)
+    | `Sum(t1, t2)  -> `Sum(remove_mta t1, remove_mta t2)
+    | `Const(c)     -> tst
 
 let is_envelope s =
   match s with
@@ -79,10 +92,19 @@ let to_disj_normal_form tst =
       | `Seq(p, `Sum(q, r))  -> `Sum(helper (`Seq(p, q)), helper (`Seq(p, r)))
       | `Seq(p, q)           -> `Seq(helper p, helper q)
       | `Sum(p, q)           -> `Sum(helper p, helper q)
-      | `Not(`Sum(t1, t2))   -> `Seq(`Not(t1), `Not(t2))
-      | `Not(`Seq(t1, t2))   -> `Sum(`Not(t1), `Not(t2))
+      | `Not(`Sum(t1, t2))   -> `Seq(`Not(helper t1), `Not(helper t2))
+      | `Not(`Seq(t1, t2))   -> `Sum(`Not(helper t1), `Not(helper t2))
       | _                    -> t
   in Util.fixpoint is_equal helper tst
+
+(* TODO: simplify inconsistent seq tests *)
+let rec simplify tst =
+  match tst with
+    | `Seq(a, b)    -> `Seq(simplify a, simplify b)
+    | `Sum(a, b)    -> `Sum(simplify a, simplify b)
+    | `Not(`Not(a)) -> simplify a
+    | `Not(a)       -> `Not(simplify a)
+    | #test         -> tst
 
 let rec to_sieve tst =
   let header_to_sieve s =

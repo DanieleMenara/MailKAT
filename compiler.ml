@@ -1,6 +1,7 @@
 open Core
 open Lexer
 open Lexing
+open Program
 
 let print_position outx lexbuf =
   let pos = lexbuf.lex_curr_p in
@@ -20,6 +21,7 @@ let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some value ->
     printf "%s\n" (Action.to_sieve value);
+    Program.to_sieve value;
     parse_and_print lexbuf
   | None -> ()
 

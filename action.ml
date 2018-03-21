@@ -60,7 +60,7 @@ let rec is_tests fmla =
     | `Star(p)   -> is_tests p
     | t          -> is_test t
 
-let is_simple_action a =
+let is_action a =
   match a with
     | #action    -> true
     | _          -> false
@@ -78,9 +78,9 @@ let rec test_on tsts a =
     | `Sum(p, q), _                       -> test_on p a || test_on q a
     | `Seq(p, q), _                       -> test_on p a || test_on q a
     | `Star(p), _                         -> test_on p a
-    | (#test | `Not #tests) as t, `Mod(f, v)              -> Test.test_on t f v
-    | (#test | `Not #tests) as t, `Red(a)                 -> Test.test_on t "envrcpt" a
-    | (#test | `Not #tests) as t, `Store(m)               -> Test.test_on t "mailbox" m
+    | (#test | `Not #tests) as t, `Mod(f, v)              -> Test.test_on t f
+    | (#test | `Not #tests) as t, `Red(a)                 -> Test.test_on t "envrcpt"
+    | (#test | `Not #tests) as t, `Store(m)               -> Test.test_on t "mailbox"
     | _ , _                               -> false
 
 let rec eval_test_on (fmla: fmla) (a: fmla):bool =
@@ -100,6 +100,13 @@ let rec is_conj_clause fmla =
     | `Seq(p, q) -> is_conj_clause p && is_conj_clause q
     | `Star p    -> is_conj_clause p
     | _         -> true
+
+let rec contains_star fmla =
+  match fmla with
+    | `Sum(p, q)                      -> contains_star p || contains_star q
+    | `Seq(p, q)                      -> contains_star p || contains_star q
+    | `Star p                         -> true
+    | (#test | `Not #tests | #action) -> false
 
 let to_disj_normal_form fmla =
   let rec helper fmla =
@@ -157,9 +164,9 @@ let rec simplify_seq_actions fmla =
       | `Seq(`Mod(h, v), `Red(n))   when h = "mailbox" -> `Red(n)
       | _                                              -> fmla
   in match fmla with
-    | `Seq(`Seq(p, q), r) when is_simple_action (simplify_simple (`Seq(q, r))) -> simplify_seq_actions (`Seq(p, (simplify_simple (`Seq(q, r)))))
+    | `Seq(`Seq(p, q), r) when is_action (simplify_simple (`Seq(q, r))) -> simplify_seq_actions (`Seq(p, (simplify_simple (`Seq(q, r)))))
     | `Seq(`Seq(p, q), r)                                                    -> `Seq((simplify_seq_actions (`Seq(p, q))), r)
-    | `Seq(p, q) when is_simple_action p && is_simple_action q -> simplify_simple fmla
+    | `Seq(p, q) when is_action p && is_action q -> simplify_simple fmla
     | _                -> fmla
 
 let rec simplify fmla =
@@ -181,42 +188,73 @@ let rec simplify fmla =
       | `Star(p)             -> `Star(assoc p)
       | _                    -> fmla
   in match fmla with
-    | `Seq(p, q) -> simplify_seq_actions (simplify_drop (Util.fixpoint is_equal (Fn.compose commute_actions assoc) fmla))
+    | `Seq(p, q) -> simplify_drop (Util.fixpoint is_equal (Fn.compose commute_actions assoc) fmla)
     | `Sum(p, q) -> `Sum(simplify p, simplify q)
     | `Star(p)   -> simplify p
     | _          -> fmla
 
-(* assume it is in assoc form *)
-let rec split_tests_actions fmla =
+(* assume it is a conj clause with no star *)
+let rec split_tests_actions (fmla: fmla) ?tsts ?actions =
+  let merge fmla1 fmla2 =
+    match fmla1, fmla2 with
+      | None, None       -> None
+      | Some f, None     -> Some f
+      | None, Some f     -> Some f
+      | Some f1, Some f2 -> Some (`Seq(f1, f2))
+  in match fmla with
+    | `Seq(p, q)    -> let (tst1, act1) = (split_tests_actions p ?tsts ?actions)
+                       and (tst2, act2) = (split_tests_actions q ?tsts ?actions)
+                       in ((merge tst1 tst2), (merge act1 act2))
+    | (#test | `Not #tests) as t -> (Some t, None)
+    | #action                    -> (tsts, Some fmla)
+
+exception Multiple_mtas;;
+
+let rec which_mta fmla =
+  let pick opt1 opt2 =
+    match opt1, opt2 with
+      | None, None     -> None
+      | Some mta, None -> Some mta
+      | None, Some mta -> Some mta
+      | Some _, Some _ -> raise Multiple_mtas
+  in match fmla with
+    | `Seq(p1, p2) -> pick (which_mta p1) (which_mta p2)
+    | `Star(p)     -> which_mta p
+    | #test as t   -> if Test.test_on t "mta" then Some (Test.get_value t) else None
+    | `Sum(_, _)   -> failwith "Mta resolution only applies to conjunctive clauses"
+    | _            -> None
+
+let rec remove_mta_tests fmla =
   match fmla with
-    | `Sum(p, q)                                                 -> `Sum(split_tests_actions p, split_tests_actions q)
-    | `Seq(`Seq(p, q), r) when is_actions r && is_simple_action q -> split_tests_actions (`Seq(p, (`Seq(q, r))))
-    | `Star(p)                                                   -> `Star(split_tests_actions p)
-    | _                                                         -> fmla
+    | `Seq(p1, p2)      -> `Seq(remove_mta_tests p1, remove_mta_tests p2)
+    | `Sum(p1, p2)        -> `Sum(remove_mta_tests p1, remove_mta_tests p2)
+    | `Star(p)          -> `Star(remove_mta_tests p)
+    | #action as a      -> a
+    | `Not(#tests as t) -> `Not(Test.remove_mta t)
+    | #test as t        -> (Test.remove_mta t :> fmla)
 
 (* TODO: add require only if needed. Assert its in correct form *)
-let to_sieve fmla =
-  let require_extensions () =
-    Printf.sprintf "reqire[\"fileinto\", \"envelope\"];\n"
-  in let rec actions_to_sieve acts =
+let rec to_sieve fmla =
+  let rec actions_to_sieve acts =
     match acts with
-      | `Mod(f, v)     -> failwith "`Mod is not supported in Sieve translation"
-      | `Red(a)        -> assert (Util.is_address a); Printf.sprintf "`Redirect \"%s\";" a
+      | `Mod(f, v)     -> failwith "Mod is not yet supported in Sieve translation"
+      | `Red(a)        -> assert (Util.is_address a); Printf.sprintf "redirect \"%s\";" a
       | `Store(m)      -> Printf.sprintf "fileinto \"%s\";" m
       | `Seq(a1, a2)   -> Printf.sprintf "%s\n%s\n" (actions_to_sieve a1) (actions_to_sieve a2)
       | _              -> failwith "Unsupported action in Sieve translation"
-  in let rec tests_to_sieve tsts =
-    assert (is_tests tsts);
+  in let rec tests_to_sieve (tsts: tests) =
     match tsts with
       | `Seq(t1, t2)      -> Printf.sprintf "%s, %s" (tests_to_sieve t1) (tests_to_sieve t2)
       | (#test | `Not #tests) as t   -> Test.to_sieve t
       | _                 -> failwith "Unsupported test in Sieve translation"
   (* TODO: add assert its in right form, no `Star *)
-  in let rec helper p =
-    match p with
-      | `Seq(tsts, actions) when is_actions actions -> Printf.sprintf "if allof(%s) {\n %s \n}" (tests_to_sieve tsts) (actions_to_sieve actions)
-      | (`Seq(_, _) | #test | `Not #tests)   -> Printf.sprintf "if allof(%s) {\nkeep;\n}" (tests_to_sieve p)
-      | `Star(q)            -> helper q
-      | `Sum(p1, p2)        -> Printf.sprintf "%s\n %s\n" (helper p1) (helper p2)
-      | #action as a         -> actions_to_sieve a
-  in Printf.sprintf "%s%s\ndiscard;\n" (require_extensions ()) (helper (split_tests_actions (simplify (to_disj_normal_form fmla))))
+  in let helper (t, a) =
+    match t, a with
+      | Some tsts, Some actions -> Printf.sprintf "if allof(%s) {\n\t%s\n}" (tests_to_sieve (Test.simplify tsts)) (actions_to_sieve (simplify_seq_actions actions))
+      | Some tsts, None         -> Printf.sprintf "if allof(%s) {\n\tkeep;\n}" (tests_to_sieve (Test.simplify tsts))
+      | None, Some actions      -> Printf.sprintf "%s" (actions_to_sieve actions)
+      | None, None              -> ""
+  in match simplify (to_disj_normal_form fmla) with
+    | `Sum(p, q) -> Printf.sprintf "%s\n%s\n" (to_sieve p) (to_sieve q)
+    | `Star(p)   -> to_sieve p
+    | f          -> helper (split_tests_actions f ?tsts:None ?actions:None)
