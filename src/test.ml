@@ -97,14 +97,22 @@ let to_disj_normal_form tst =
       | _                    -> t
   in Util.fixpoint is_equal helper tst
 
+let is_true tst =
+  match tst with
+    | `Const(true) -> true
+    | _            -> false
+
 (* TODO: simplify inconsistent seq tests *)
 let rec simplify tst =
   match tst with
-    | `Seq(a, b)    -> `Seq(simplify a, simplify b)
-    | `Sum(a, b)    -> `Sum(simplify a, simplify b)
-    | `Not(`Not(a)) -> simplify a
-    | `Not(a)       -> `Not(simplify a)
-    | #test         -> tst
+    | `Seq(a, b) when is_true a -> simplify b
+    | `Seq(a, b) when is_true b -> simplify a
+    | `Seq(a, b)                -> `Seq(simplify a, simplify b)
+    | `Seq(a, b)                -> `Seq(simplify a, simplify b)
+    | `Sum(a, b)                -> `Sum(simplify a, simplify b)
+    | `Not(`Not(a))             -> simplify a
+    | `Not(a)                   -> `Not(simplify a)
+    | #test                     -> tst
 
 let rec to_sieve tst =
   let header_to_sieve s =
