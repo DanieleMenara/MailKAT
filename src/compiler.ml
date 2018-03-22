@@ -32,4 +32,12 @@ let loop filename () =
   parse_and_print lexbuf;
   In_channel.close inx;;
 
-loop Sys.argv.(1) ();;
+module Make() =
+  struct
+    let compile filename =
+      let start = Unix.gettimeofday () in
+      let code = loop filename () in
+      let stop = Unix.gettimeofday () in
+      code;
+      Printf.printf "Compilation time: %fs\n%!" (stop -. start);;
+end

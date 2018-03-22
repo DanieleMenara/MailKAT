@@ -1,10 +1,10 @@
 OCB := ocamlbuild -use-menhir -tag thread -use-ocamlfind -pkg core -package str
 
 EXAMPLEDIR:=./examples
-SIEVE:=/src/compiler.native
+SIEVE:=/src/mailkat.native
 
 all:
-	$(OCB) src/compiler.native
+	$(OCB) src/mailkat.native
 
 tests: all sieve-tests
 
@@ -14,7 +14,8 @@ tests: all sieve-tests
 clean:
 	$(OCB) -clean
 
-VPATH = src/
+clean-tests:
+	rm *.sieve
 
 sieve-tests:
-	-@for TST in $(EXAMPLEDIR)/*.txt ; do echo $$TST: ; _build/$(SIEVE) $$TST ; echo ; done
+	-@for TST in $(EXAMPLEDIR)/*.txt ; do echo $$TST: ; _build/$(SIEVE) -to-sieve $$TST ; echo ; done
