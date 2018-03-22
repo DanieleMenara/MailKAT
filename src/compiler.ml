@@ -17,26 +17,25 @@ let parse_with_error lexbuf =
     fprintf stderr "%a: syntax error\n" print_position lexbuf;
     exit (-1)
 
-let rec parse_and_print lexbuf =
+let rec parse_and_print ?(print=false) lexbuf =
   match parse_with_error lexbuf with
   | Some value ->
-    printf "%s\n" (Action.to_sieve value);
-    Program.to_sieve value;
+    Program.to_sieve ~print value;
     parse_and_print lexbuf
   | None -> ()
 
-let loop filename () =
+let loop ?(print=false) filename =
   let inx = In_channel.create filename in
   let lexbuf = Lexing.from_channel inx in
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-  parse_and_print lexbuf;
+  parse_and_print ~print lexbuf;
   In_channel.close inx;;
 
 module Make() =
   struct
-    let compile filename =
+    let compile ?(print=false) filename =
       let start = Unix.gettimeofday () in
-      let code = loop filename () in
+      let code = loop ~print filename in
       let stop = Unix.gettimeofday () in
       code;
       Printf.printf "Compilation time: %fs\n%!" (stop -. start);;

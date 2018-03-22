@@ -20,6 +20,6 @@ let die msg =
 let () =
     Arg.parse !optlist (fun _ -> raise (Arg.Bad "Stray argument found.")) !usage ;
     if not (!to_sieve="") then
-      Sieve.compile !to_sieve
+      Sieve.compile ~print:!show_output !to_sieve
     else
       die "Invalid arguments or flags."

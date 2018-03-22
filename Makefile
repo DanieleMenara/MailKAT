@@ -15,7 +15,7 @@ clean:
 	$(OCB) -clean
 
 clean-tests:
-	rm *.sieve
+	rm -f *.sieve
 
 sieve-tests:
 	-@for TST in $(EXAMPLEDIR)/*.txt ; do echo $$TST: ; _build/$(SIEVE) -to-sieve $$TST ; echo ; done

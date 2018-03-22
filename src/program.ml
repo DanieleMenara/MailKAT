@@ -28,14 +28,17 @@ let split_by_mta fmla =
       | None     -> Hashtbl.fold (fun k v acc -> (k, v)::acc) table []
   in table_to_list (map_to_mta (tbl ();) (to_disj_normal_form fmla))
 
-let to_sieve prog =
+let to_sieve ?(print=false) prog =
   let require_extensions () =
     Printf.sprintf "require[\"fileinto\", \"envelope\"];\n"
   in let rec helper prog =
     match prog with
       | []                   -> ()
-      | (filename, p1)::tail -> let out_ch = open_out (String.concat "." [filename; "sieve"]) in
-                                fprintf out_ch  "%s\n\n%s\ndiscard;\n" (require_extensions ()) (Action.to_sieve p1);
+      | (filename, p1)::tail -> let out_ch = open_out (String.concat "." [filename; "sieve"])
+                                in let sieve = Printf.sprintf "%s\n\n%s\ndiscard;\n" (require_extensions ())
+                                               (Action.to_sieve p1)
+                                in (if print then printf "------------\n%s------------\n" sieve);
+                                fprintf out_ch "%s" sieve;
                                 close_out out_ch;
                                 helper tail
   in if contains_star prog then failwith "Cannot convert to Sieve program with Kleene Star operator"
