@@ -1,1 +1,1 @@
-mta = "C" ; envrcpt = "user2@domain.com" ; !(subject = "Free money") ; (red["user3@domain.com"] + 1) + mta = "D" ; envrcpt = "user3@domain.com" ; !(subject = "Free money") ; (from = "user1@domain.com" ; store["Imp"] + 1)
+(red["user3@example.com"] + 1) ; mta = "C" ; envrcpt = "user2@example.com" ; !(subject = "Free money") + mta = "D" ; envrcpt = "user3@example.com" ; !(subject = "Free money") ; (from = "user1@example.com" ; store["Imp"] + 1)

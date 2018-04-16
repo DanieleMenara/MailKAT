@@ -25,7 +25,7 @@ open Test
 %left PLUS              /* lowest precedence */
 %left SEQ               /* medium precedence */
 %nonassoc NEG           /* highest precedence */
-%nonassoc STAR           /* highest precedence */
+%nonassoc STAR          /* highest precedence */
 
 %start <Action.fmla option> prog
 %type <Action.fmla> action
@@ -57,4 +57,5 @@ test:
   | ZERO                                                    { `Const(false) }
   | ONE                                                     { `Const(true) }
   | NEG; t = tests                                          { `Not(t) }
-  | field = ID; EQUAL; value = STRING                       { `Test(field, value) } ;
+  | field = ID; EQUAL; value = STRING                       { `Test(field, (Some value)) }
+  | field = ID; EQUAL; value = NULL                         { `Test(field, None) } ;

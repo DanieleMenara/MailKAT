@@ -11,8 +11,7 @@ let split_by_mta fmla =
   in let add_to_tbl tbl conj_clause =
     try
       let mta = which_mta conj_clause
-      in if is_none mta then merge_entries tbl "All" conj_clause
-      else merge_entries tbl (option_get mta) (remove_mta_tests conj_clause)
+      in merge_entries tbl (option_get ~if_none:"All" mta) (remove_mta_tests conj_clause)
     with
       Multiple_mtas -> ()
   in let rec map_to_mta tbl f =
@@ -24,13 +23,14 @@ let split_by_mta fmla =
   in let table_to_list table =
     match Hashtbl.find_opt table "All" with
       | Some all -> Hashtbl.remove table "All";
+                    if Hashtbl.length table = 0 then [("all", all)] else
                     Hashtbl.fold (fun k v acc -> (k, (Action.mk_sum v all))::acc) table []
       | None     -> Hashtbl.fold (fun k v acc -> (k, v)::acc) table []
-  in table_to_list (map_to_mta (tbl ();) (to_disj_normal_form fmla))
+  in table_to_list (map_to_mta (tbl ();) (to_snf fmla))
 
 let to_sieve ?(print=false) prog =
   let require_extensions () =
-    Printf.sprintf "require[\"fileinto\", \"envelope\"];\n"
+    Printf.sprintf "require[\"fileinto\", \"envelope\", \"environment\"];\n"
   in let rec helper prog =
     match prog with
       | []                   -> ()
