@@ -86,6 +86,14 @@ let rec contains_mod fmla =
     | `Mod(_, _)                      -> true
     | (#test | `Not #tests | #action) -> false
 
+let rec test_on fmla h =
+  match fmla with
+    | `Sum(p, q)                 -> contains_mod p || contains_mod q
+    | `Seq(p, q)                 -> contains_mod p || contains_mod q
+    | `Star p                    -> contains_mod p
+    | (#test | `Not #tests) as t -> Test.test_on t h
+    | #action                    -> false
+
 let assoc fmla =
   let rec helper f =
     match f with
@@ -134,13 +142,14 @@ let rec simplify_seq_actions fmla =
       | _                                              -> fmla
   in match fmla with
     | `Seq(#action as p, `Seq((#action as q), r)) -> simplify_seq_actions (`Seq(helper (`Seq(p, q)), r))
-    | `Seq(#action as p, (#action as q))          -> helper fmla
+    | `Seq(#action, #action)                      -> helper fmla
     | _                                           -> fmla
 
+let is_convertible_to_snf fmla =
+  not (contains_star fmla) && not (contains_mod fmla) && not (test_on fmla "mailbox")
+
 let rec to_snf fmla =
-  assert(not (contains_star fmla));
-  assert(not (contains_mod fmla));
-  (* TODO: assert it doesn't test on mailbox *)
+  assert(is_convertible_to_snf fmla);
   let commute_tsts a tsts :> fmla =
     match a with
       | `Store(n) -> tsts
@@ -150,8 +159,8 @@ let rec to_snf fmla =
   in let helper f =
     match f with
       | `Seq(#action as p, ((#test | `Not #tests) as q))          -> `Seq(commute_tsts p q, p)
-      | `Seq(#action as p, (#action as q))                        -> simplify_seq_actions f
-      | `Seq(#action as p, (`Seq((#action as q), r) as t))        -> to_snf (`Seq(simplify_seq_actions t, r))
+      | `Seq(#action, #action)                                    -> simplify_seq_actions f
+      | `Seq(#action, (`Seq(#action, r) as t))                    -> to_snf (`Seq(simplify_seq_actions t, r))
       | `Seq(#action as p, `Seq(((#test | `Not #tests) as q), r)) -> `Seq(commute_tsts p q, to_snf (`Seq(p, r)))
       | `Seq(p, q)                                                -> `Seq(p, to_snf q)
       | `Sum(p, q)                                                -> `Sum(to_snf p, to_snf q)
@@ -159,7 +168,7 @@ let rec to_snf fmla =
   in helper (assoc (to_disjunctive_normal_form fmla))
 
 (* assume it is in SNF *)
-let rec split_tests_actions (fmla: fmla) ?tsts ?actions =
+let rec split_tests_actions ?tsts ?actions (fmla: fmla) =
   let merge fmla1 fmla2 =
     match fmla1, fmla2 with
       | None, None       -> None
@@ -167,11 +176,12 @@ let rec split_tests_actions (fmla: fmla) ?tsts ?actions =
       | None, Some f     -> Some f
       | Some f1, Some f2 -> Some (`Seq(f1, f2))
   in match fmla with
-    | `Seq(p, q)    -> let (tst1, act1) = (split_tests_actions p ?tsts ?actions)
-                       and (tst2, act2) = (split_tests_actions q ?tsts ?actions)
-                       in ((merge tst1 tst2), (merge act1 act2))
+    | `Seq(p, q)                 -> let (tst1, act1) = (split_tests_actions ?tsts ?actions p)
+                                    and (tst2, act2) = (split_tests_actions ?tsts ?actions q)
+                                    in ((merge tst1 tst2), (merge act1 act2))
     | (#test | `Not #tests) as t -> (Some t, None)
     | #action                    -> (tsts, Some fmla)
+    | _                          -> failwith "Invalid use of split_tests_actions"
 
 exception Multiple_mtas;;
 
@@ -221,4 +231,4 @@ let rec to_sieve fmla =
   in match (to_snf fmla) with
     | `Sum(p, q) -> Printf.sprintf "%s\n%s\n" (to_sieve p) (to_sieve q)
     | `Star(p)   -> failwith "Unsupported star operator in Sieve compilation"
-    | f          -> helper (split_tests_actions f ?tsts:None ?actions:None)
+    | f          -> helper (split_tests_actions ?tsts:None ?actions:None f)

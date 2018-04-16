@@ -3,6 +3,11 @@ open Lexer
 open Lexing
 open Program
 
+(* Functions print_position, parse_with_error, parse_and_print and loop from:
+   Chapter 16, Real World OCaml: Functional programming for the masses.
+   "O'Reilly Media, Inc.".
+   Minsky, Y., Madhavapeddy, A., & Hickey, J. (2013).*)
+
 let print_position outx lexbuf =
   let pos = lexbuf.lex_curr_p in
   fprintf outx "%s:%d:%d" pos.pos_fname

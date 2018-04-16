@@ -2,6 +2,8 @@ open Action
 open Printf
 open Util
 
+(** Split MailKAT program into different files, one per each MTA
+    specified in the program. Refer to report. *)
 let split_by_mta fmla =
   let tbl () = Hashtbl.create 10
   in let merge_entries table key fmla =
@@ -16,7 +18,7 @@ let split_by_mta fmla =
       Multiple_mtas -> ()
   in let rec map_to_mta tbl f =
     match f with
-      | `Sum(p, q)  -> map_to_mta tbl p; map_to_mta tbl q
+      | `Sum(p, q)  -> ignore (map_to_mta tbl p); map_to_mta (tbl) q
       | `Star _     -> failwith "Program needs to be star free to be split by mta"
       | `Seq(_, _)  -> add_to_tbl tbl f; tbl
       | _           -> add_to_tbl tbl f; tbl
@@ -28,6 +30,7 @@ let split_by_mta fmla =
       | None     -> Hashtbl.fold (fun k v acc -> (k, v)::acc) table []
   in table_to_list (map_to_mta (tbl ();) (to_snf fmla))
 
+(** Compile to sieve by generating one file per MTA with Sieve script *)
 let to_sieve ?(print=false) prog =
   let require_extensions () =
     Printf.sprintf "require[\"fileinto\", \"envelope\", \"environment\"];\n"
@@ -41,5 +44,6 @@ let to_sieve ?(print=false) prog =
                                 fprintf out_ch "%s" sieve;
                                 close_out out_ch;
                                 helper tail
-  in if contains_star prog then failwith "Cannot convert to Sieve program with Kleene Star operator"
+  in if not (is_convertible_to_snf prog)
+     then failwith "Program is not convertible to SNF and, thus, it cannot be compiled to Sieve."
      else helper (split_by_mta prog)

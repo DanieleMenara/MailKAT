@@ -4,6 +4,9 @@ open Parser
 
 exception SyntaxError of string
 
+(* Function from: Chapter 16, Real World OCaml: Functional programming for the masses.
+   "O'Reilly Media, Inc.".
+   Minsky, Y., Madhavapeddy, A., & Hickey, J. (2013).*)
 let next_line lexbuf =
   let pos = lexbuf.lex_curr_p in
   lexbuf.lex_curr_p <-
@@ -12,13 +15,8 @@ let next_line lexbuf =
     }
 }
 
-let int = '-'? ['0'-'9'] ['0'-'9']*
-let digit = ['0'-'9']
-let frac = '.' digit*
-let exp = ['e' 'E'] ['-' '+']? digit+
-let float = digit* frac? exp?
-let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
+let white = [' ' '\t']+
 let id = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 
 rule read =
@@ -45,6 +43,9 @@ rule read =
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof      { EOF }
 
+(* Function from: Chapter 16, Real World OCaml: Functional programming for the masses.
+   "O'Reilly Media, Inc.".
+   Minsky, Y., Madhavapeddy, A., & Hickey, J. (2013).*)
 and read_string buf =
   parse
   | '"'       { STRING (Buffer.contents buf) }

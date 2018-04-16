@@ -39,7 +39,7 @@ prog:
 
 action:
   | t = test                                                { t :> fmla }
-  | field = ID; ASSIGN; value = ID                          { `Mod(field, value) }
+  | field = ID; ASSIGN; value = ID                          { `Mod(Util.sanitize_header(field), value) }
   | RED; LEFT_SQUARE; add = STRING; RIGHT_SQUARE            { `Red(add) }
   | STORE; LEFT_SQUARE; mailbox = STRING; RIGHT_SQUARE      { `Store(mailbox) }
   | a = delimited(LEFT_BRACK, action, RIGHT_BRACK)          { a }
@@ -57,5 +57,5 @@ test:
   | ZERO                                                    { `Const(false) }
   | ONE                                                     { `Const(true) }
   | NEG; t = tests                                          { `Not(t) }
-  | field = ID; EQUAL; value = STRING                       { `Test(field, (Some value)) }
-  | field = ID; EQUAL; value = NULL                         { `Test(field, None) } ;
+  | field = ID; EQUAL; value = STRING                       { `Test(Util.sanitize_header(field), (Some value)) }
+  | field = ID; EQUAL; value = NULL                         { `Test(Util.sanitize_header(field), None) } ;

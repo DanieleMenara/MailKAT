@@ -1,4 +1,3 @@
-
 module Sieve = Compiler.Make()
 
 let show_output = ref false
