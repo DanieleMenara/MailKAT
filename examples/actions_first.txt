@@ -1,0 +1,1 @@
+mta = "A" ; (store["Imp"] + 1 + red["user2@example.com"]) ; (!(subject = "Free money") ; from = "user1@example.com")

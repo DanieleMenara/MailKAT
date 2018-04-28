@@ -31,13 +31,13 @@ let split_by_mta fmla =
   in table_to_list (map_to_mta (tbl ();) (to_snf fmla))
 
 (** Compile to sieve by generating one file per MTA with Sieve script *)
-let to_sieve ?(print=false) prog =
+let to_sieve ?(print=false) ?(folder="") prog =
   let require_extensions () =
     Printf.sprintf "require[\"fileinto\", \"envelope\", \"environment\"];\n"
   in let rec helper prog =
     match prog with
       | []                   -> ()
-      | (filename, p1)::tail -> let out_ch = open_out (String.concat "." [filename; "sieve"])
+      | (filename, p1)::tail -> let out_ch = open_out (folder ^ (String.concat "." [filename; "sieve"]))
                                 in let sieve = Printf.sprintf "%s\n\n%s\ndiscard;\n" (require_extensions ())
                                                (Action.to_sieve p1)
                                 in (if print then printf "------------\n%s------------\n" sieve);

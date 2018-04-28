@@ -1,0 +1,1 @@
+mta = "A" ; red["user3@example.com"] ; red["user1@example.com"]

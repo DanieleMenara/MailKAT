@@ -1,0 +1,1 @@
+mta = "A" ; !(subject = "Free money") ; subject = "Free money" ; red["user3@example.com"]

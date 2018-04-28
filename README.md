@@ -19,7 +19,6 @@ make
 
 # Clean
 make clean
-
 ```
 where [-p] can be used to output to console.
 
