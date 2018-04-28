@@ -15,12 +15,12 @@ MailKAT compiler implementation as described in the complementary report.
 make
 
 # Usage
-./mailkat.native [-p] -to-sieve <file>
+./mailkat.native [-p] -to-sieve <file> [-o <output_folder>]
 
 # Clean
 make clean
 ```
-where [-p] can be used to output to console.
+where [-p] can be used to output to console and [-o] to specify an output folder.
 
 ### Test Programs
 
