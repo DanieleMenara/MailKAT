@@ -28,8 +28,10 @@ To compile the test programs provided in the "examples" folder, run:
 
 ```
 # Make tests
-make sieve-tests
+make tests
 
 # Clean
 make clean-tests
 ```
+
+Note: requires manually updating "tests" target on Windows.
